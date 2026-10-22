@@ -106,6 +106,7 @@ end
 | `invalid_entry` | send | — | server rejects bad input |
 | `issue` | send | `errorMsg` | client error report |
 | `claim_quest` | get | `questFrameChildName` | quests |
+| `minigame_win` | send | `atmInstance` | ATM slider hack win (ArgumentChecks.Win) |
 | `reload_gun` | send/get | `?` | gun reload |
 | `explode_vehicle` | send | `vehicle` | vehicle explosion |
 | `crashed_car` | send | `?` | car crash report (blockable for NoCrash) |
@@ -233,18 +234,45 @@ Teleport coordinates (from leaked Teleport_Positions):
 - Ammo crates at the gun shop take `Pistol`/`Rifle`/`Shotgun` options via
   `open_crate`.
 
-## Useful GUI paths
+## Useful GUI paths — CONFIRMED
 
 ```lua
-PlayerGui.TopRightHud.Holder.StaminaBar          -- stamina bar
-PlayerGui.TopRightHud.Holder.Frame.MoneyTextLabel -- "$1234" hand cash
-PlayerGui.NetworkStats.PingLabel                  -- ping number
-PlayerGui.JobApplication                          -- job apply UI
-PlayerGui.ProgressBar                             -- job minigame bar
+PlayerGui.TopRightHud.Holder.StaminaBar                  -- stamina bar
+PlayerGui.TopRightHud.Holder.Frame.MoneyTextLabel        -- "$1234" hand cash
+PlayerGui.NetworkStats.PingLabel                         -- ping number
+PlayerGui.JobApplication                                 -- job apply UI
+PlayerGui.ProgressBar                                    -- job minigame bar
+PlayerGui.Items.ItemsHolder.ItemsScrollingFrame          -- INVENTORY: ImageButtons, child "ItemName" TextLabel
+PlayerGui.Sidebar.SidebarSlider.SidebarHolder
+        .SidebarHolderSlider.Holder.InventoryButton      -- opens the inventory
+PlayerGui.ATM.ATMHolder.ATMHomePage.Title.ATMHackButton  -- ATM hack button
+PlayerGui.SelectOption.ChooseOptionsHolder
+        .ChooseOptionsScrollingFrame                     -- hack-tool picker buttons:
+        -- "Basic Hack Tool" / "Pro Hack Tool" / "Ultimate Hack Tool" / "Quantum Hack Tool"
+PlayerGui.ConsumableBuy.ConsumableOptionsHolder
+        .ConsumableOptionsScrollingFrame                 -- item cards → Item.Options
+        -- .ConsumableName (TextLabel) + .ConsumableBuyButton (button)
+PlayerGui.SliderMinigame.SliderMinigameFrame.Bar
+        -- .Needle (moving) + .Target (green zone) — ATM hack minigame
 ```
 
-Bank balance: a `TextLabel` containing "Bank Balance" somewhere under
-`PlayerGui` while the ATM UI is open.
+Bank balance: a `TextLabel` containing "Bank Balance" under `PlayerGui`
+while the ATM UI is open.
+
+## World objects — CONFIRMED
+
+```lua
+workspace.Map.Props          -- ATM Models named "ATM" (attr `disabled`,
+                             --  ObjectValue child = claimed by hacker)
+workspace.Map.NPCs.AlleyWayGuy           -- illegal dealer NPC
+workspace.ConsumableShopZone_Illegal     -- .ProximityPrompt (illegal shop)
+workspace.DroppedItems / workspace.DroppedItem  -- loot folders; some
+                             -- PickUpZone models spawn directly under
+                             -- workspace — always scan both.
+```
+
+Hack tool item names (inventory): `HackToolBasic`, `HackToolPro`,
+`HackToolUltimate`, `HackToolQuantum` (~$150/$350/$550, prices drift).
 
 ## Misc client APIs
 
@@ -255,6 +283,8 @@ Bank balance: a `TextLabel` containing "Bank Balance" somewhere under
   reactive state again.
 - `Modules.Game.Quests.QuestsData`, `Modules.Game.StockTimes`,
   `Modules.ItemTypes.FishingRod`, `Modules.Jobs.JobData` exist.
+- `Modules.Game.Inventory.Hotbar` — its `initiate` fenv contains
+  `get_max_items` (carried-inventory cap).
 - Counter table discovery (zenith pattern): scan `getgc(true)` for a table
   with `rawget(t,"event")` and `rawget(t,"func")` — that's the live counter
   object if you ever need to bump it manually.
