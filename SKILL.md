@@ -1,0 +1,104 @@
+---
+name: blockspin
+description: Complete knowledge base for the Roblox game BlockSpin (PlaceId 104715542330896) - game mechanics, death-drop rules, map, jobs, weapon/item values, the internal networking layer (ReplicatedStorage.Modules.Core.Net), sub-place shards, anti-cheat, manual drop/pickup trading, and account-data inspection. Use when building tools, Lua scripts, or automation for BlockSpin, when transferring items between accounts, or when answering questions about the game.
+---
+
+# BlockSpin (Roblox) — Agent Knowledge Base
+
+BlockSpin is an open-world crime game by **Cinnamon Go!** (beta, ~1.3B visits).
+Root PlaceId `104715542330896`, UniverseId `6765805766`, 28 players per server,
+R15 avatars, Florida-county map on a ~6x5 road grid. No private/VIP servers
+(`createVipServersAllowed = false`) — the only privacy for item hand-offs is
+choosing a near-empty public server.
+
+## The one rule everything hangs on
+
+The official description: **"You drop everything in your inventory on death;
+place items into the safe in your house to keep them secure."**
+
+- Death drops 100% of carried items + most carried cash (~72% drops, 8% burned,
+  ~20% kept — community-sourced, not confirmed server logic).
+- Leaving the game while in combat also drops items (combat-logging).
+- House safes (rented via door/"for rent" prompt, ~$250 in older footage) are
+  the only protected storage. Mansion Underground update added extra safes in
+  high-tier homes; the Fishing update added another storage utility.
+- ATMs deposit carried cash into safe storage. Pawn shop buys at ~30% of value.
+
+## No trade window — transfers are physical
+
+Every item hand-off is manual: one player drops the item on the ground and the
+other picks it up via a ProximityPrompt (hold-E). Cash drops are taxed
+(receiver gets ~72-73%). This is the ONLY exchange mechanism — and it is what
+real traders (and marketplaces like zeusx selling "RPG INSTANT DROP") use.
+
+## Sub-place shards — critical for multi-account work
+
+The game has 6 places. Accounts may be routed to different shards, which makes
+two clients joined to the "same" JobId still unable to see each other.
+
+| Place | PlaceId | Notes |
+|---|---|---|
+| Main 🔪 | 104715542330896 | Root place, server list public |
+| New Players | 132247642420063 | Live servers with 1-2 players — best privacy |
+| PRO | 102036043572089 | No public servers observed |
+| VC ONLY | 113269916962108 | Teleport-only (server API 400) |
+| BlockSpin+ | 95898900045000 | Teleport-only |
+| Server: 2 | 97556409405464 | Teleport-only |
+
+Always verify `game.PlaceId` in-game and that `Players:FindFirstChild(targetName)`
+actually resolves before dropping anything.
+
+## Networking internals (from leaked client code)
+
+- All events go through `require(ReplicatedStorage.Modules.Core.Net)`:
+  `Net.send("event_name", args...)` / `Net.invoke(...)`.
+- Event names are snake_case. Confirmed by observation of public scripts:
+  `request_respawn`, `throw_hit`, `start_emote`.
+- The concrete sender can be an upvalue: leaks showed
+  `debug.getupvalue(require(Modules.Game.Sprint).loaded, 11).send`.
+- Map tree: `workspace.Map.Tiles.<TileName>.<Building>.Interior`
+  (e.g. `ShoppingTile.SteakHouse.Interior`).
+- Job stored as attribute: `player:GetAttribute("Job")` (e.g. `steakhouse_cook`).
+  Stamina attributes: `StaminaRegen`, `MaxStamina`.
+- Dropped loot = Models/Parts with `ProximityPrompt` (not necessarily Tools).
+
+## Anti-cheat (real, present)
+
+- Watchdog module `PlayerWellbeingObfuscated` — published bypass hooks every
+  function sourced from it to `task.wait(9e9)`.
+- Validates hooks via `getfenv`/`debug.traceback`/`debug.info` ("validity_check").
+- Monitors `LogService.MessageOut` and `ScriptContext.Error` and reports to the
+  server — never let a script error leak inside hooked code.
+- The game flags fresh accounts: promo codes return
+  "Could not validate your account (Alt Account)" for new alts.
+
+## What is NOT publicly known (verify in-game before trusting)
+
+- The exact server event name/args for dropping an item (no public source).
+- Exact safe-store event name/args.
+- Authoritative schema for safe contents, garage/vehicle data, account value.
+- How to obtain these: run a remote spy that hooks every function field on the
+  Net module + `send`-named functions found in module upvalues, plus a
+  `__namecall` fallback logging `FireServer`/`InvokeServer`. Then manually
+  drop/store a cheap item and read the captured names.
+
+## Safe transfer workflow (cheap-item first)
+
+1. Run an account-data dump + remote spy on a test account holding a CHEAP item.
+2. Drop the item manually; capture the real event + args.
+3. Hardwire the verified event; test source-drop → replicated ground loot →
+   target pickup → target inventory, end to end.
+4. Only then handle valuable items (RPG ~$175K trade value; durability ~96 —
+   half-durability items sell ~60%). Never test with the valuable item itself.
+5. Prefer the New Players shard or the emptiest public server; check both
+   clients report the same PlaceId and the source sees the target player.
+
+## References
+
+- [references/mechanics.md](references/mechanics.md) — jobs, combat, houses,
+  vehicles, ATM hacks, economy, codes, threats during transfers.
+- [references/map.md](references/map.md) — full location list with purposes.
+- [references/items-values.md](references/items-values.md) — weapons, rarities,
+  trade values, durability, untradeable items.
+- [references/internals.md](references/internals.md) — module/event details,
+  anti-cheat techniques, drop/pickup/store strategy for scripts.
