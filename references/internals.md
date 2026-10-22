@@ -105,7 +105,12 @@ end
 | `replicate_stamina_bar` | send | — | high-frequency; don't spam |
 | `invalid_entry` | send | — | server rejects bad input |
 | `issue` | send | `errorMsg` | client error report |
-| `claim_quest` | send/get | `?` | quests (name only) |
+| `claim_quest` | get | `questFrameChildName` | quests |
+| `reload_gun` | send/get | `?` | gun reload |
+| `explode_vehicle` | send | `vehicle` | vehicle explosion |
+| `crashed_car` | send | `?` | car crash report (blockable for NoCrash) |
+| `death_screen_request_respawn` | get (and send) | — | respawn from death screen |
+| `pickup_item` | get? | `?` | seen once; prefer `pickup_dropped_item` |
 | `get_random_free_grill` | get | `?` | cook job (name only) |
 | `fix_desync_hip_height` | get | `?` | desync fix (name only) |
 
@@ -211,7 +216,48 @@ Teleport coordinates (from leaked Teleport_Positions):
 ## Player attributes
 
 `Job` (e.g. `"steakhouse_cook"`), `level`, `StaminaRegen`, `MaxStamina`,
-`StaminaConsumeMultiplier`, `IsDead`, `IsConnected`.
+`StaminaConsumeMultiplier`, `IsDead`, `IsConnected`, `IsInSafeZone`
+(safe zones exist — characters/players carry this flag).
+
+## Weapon/tool attributes & names
+
+- Default unarmed tool: `"Fists"`.
+- Gun `AmmoType` attribute: `sniper`, `shotgun`/`shootgun`, `rifle`, `smg`,
+  `pistol` (+ `sniper_ammo` variants). Ammo attrs: `current_ammo`, `max_ammo`,
+  `reload_time`.
+- Healing tools: `HealthRestoreAmount` (also `HealAmount`, `RestoreHealth`).
+- Weapon names observed in scripts: intervention, mossberg, glock, deagle,
+  famas, revolver, vector, spas, p90, usp, m4/ar-class rifles.
+- Weapon type from name (scripts classify): sniper/scope, shotgun/spas,
+  rifle/ak/m4/famas, smg/mp/uzi/vector, pistol/deagle/glock/revolver.
+- Ammo crates at the gun shop take `Pistol`/`Rifle`/`Shotgun` options via
+  `open_crate`.
+
+## Useful GUI paths
+
+```lua
+PlayerGui.TopRightHud.Holder.StaminaBar          -- stamina bar
+PlayerGui.TopRightHud.Holder.Frame.MoneyTextLabel -- "$1234" hand cash
+PlayerGui.NetworkStats.PingLabel                  -- ping number
+PlayerGui.JobApplication                          -- job apply UI
+PlayerGui.ProgressBar                             -- job minigame bar
+```
+
+Bank balance: a `TextLabel` containing "Bank Balance" somewhere under
+`PlayerGui` while the ATM UI is open.
+
+## Misc client APIs
+
+- `Modules.Core.Char`: `get_hum()`, `current_char.get()`.
+- `Modules.Core.Util` exists (generic helpers).
+- `Modules.Game.CharacterCreator.CharacterCreator` exists.
+- `Modules.Game.Emotes.EmotesUI.current_emote_playing.get()/.set(btn)` —
+  reactive state again.
+- `Modules.Game.Quests.QuestsData`, `Modules.Game.StockTimes`,
+  `Modules.ItemTypes.FishingRod`, `Modules.Jobs.JobData` exist.
+- Counter table discovery (zenith pattern): scan `getgc(true)` for a table
+  with `rawget(t,"event")` and `rawget(t,"func")` — that's the live counter
+  object if you ever need to bump it manually.
 
 ## Anti-cheat (PlayerWellbeingObfuscated)
 
