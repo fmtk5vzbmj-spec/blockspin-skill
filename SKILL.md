@@ -48,19 +48,26 @@ two clients joined to the "same" JobId still unable to see each other.
 Always verify `game.PlaceId` in-game and that `Players:FindFirstChild(targetName)`
 actually resolves before dropping anything.
 
-## Networking internals (from leaked client code)
+## Networking internals (CONFIRMED from decompiled client modules)
 
-- All events go through `require(ReplicatedStorage.Modules.Core.Net)`:
-  `Net.send("event_name", args...)` / `Net.invoke(...)`.
-- Event names are snake_case. Confirmed by observation of public scripts:
-  `request_respawn`, `throw_hit`, `start_emote`.
-- The concrete sender can be an upvalue: leaks showed
-  `debug.getupvalue(require(Modules.Game.Sprint).loaded, 11).send`.
+- Protocol: `Remotes.Send` (RemoteEvent) + `Remotes.Get` (RemoteFunction),
+  wrapped by `Net.send`/`Net.get`. Every call carries an incrementing
+  counter as arg1 — always go through the Net module, never raw remotes.
+- Player state lives in `require(Modules.Core.Data)`:
+  `money.hand`, `money.bank`, `items[cat][name] = {guid, amount, location}`,
+  `xp.*`. Items are dropped/equipped **by GUID**, not by name.
+- CONFIRMED core events:
+  - drop: `Net.send("drop_item", guid, amount)`
+  - pickup: `Net.get("pickup_dropped_item", droppedItemModel)` — plus
+    touching `workspace.DroppedItems.<item>.PickUpZone`.
+  - bank: `Net.get("transfer_funds", "hand"/"bank", "bank"/"hand", amount)`
+  - equip/spawn: `Net.get("toggle_equip_item", guid)`
+  - crates: `Net.get("open_crate", crateOptionsChild, "money")`
+- Dropped loot = `workspace.DroppedItems` Models (name = item name,
+  `item_type` attribute → `ReplicatedStorage.Items[cat][name]` with
+  `RarityName`).
 - Map tree: `workspace.Map.Tiles.<TileName>.<Building>.Interior`
-  (e.g. `ShoppingTile.SteakHouse.Interior`).
-- Job stored as attribute: `player:GetAttribute("Job")` (e.g. `steakhouse_cook`).
-  Stamina attributes: `StaminaRegen`, `MaxStamina`.
-- Dropped loot = Models/Parts with `ProximityPrompt` (not necessarily Tools).
+  (e.g. `ShoppingTile.SteakHouse.Interior.Fridge`).
 
 ## Anti-cheat (real, present)
 
@@ -74,13 +81,14 @@ actually resolves before dropping anything.
 
 ## What is NOT publicly known (verify in-game before trusting)
 
-- The exact server event name/args for dropping an item (no public source).
-- Exact safe-store event name/args.
-- Authoritative schema for safe contents, garage/vehicle data, account value.
-- How to obtain these: run a remote spy that hooks every function field on the
-  Net module + `send`-named functions found in module upvalues, plus a
-  `__namecall` fallback logging `FireServer`/`InvokeServer`. Then manually
-  drop/store a cheap item and read the captured names.
+- The house-safe store event name/args — spy `Net.get`/`Net.send` while
+  manually depositing a cheap item in a rented house safe.
+- Whether `location` fields on `DataCore.items` distinguish "hand" vs
+  "safe" cleanly in every category (observed values so far: `hand`).
+- How to obtain the rest: run a remote spy that hooks every function field
+  on the Net module + `send`-named functions found in module upvalues,
+  plus a `__namecall` fallback logging `FireServer`/`InvokeServer`. Then
+  manually drop/store a cheap item and read the captured names.
 
 ## Safe transfer workflow (cheap-item first)
 

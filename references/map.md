@@ -36,7 +36,26 @@ Useful confirmed object paths (leaks):
 ```lua
 workspace.Map.Tiles.ShoppingTile.SteakHouse.Interior
 workspace.Map.Tiles.BurgerPlaceTile.BurgerPlace.Interior.Puddles
+workspace.Map.Tiles.GunShopTile.PatriotWeapons.Interior.Crates["Weapon Crate"].CrateOptions.Superior
 workspace.Beacon.Base
+workspace.Vehicles        -- spawned cars (OwnerUserId attribute, Motors child)
+workspace.DroppedItems    -- dropped loot Models (PickUpZone inside)
 ```
 
-PlayerGui names observed: `JobApplication`, `ProgressBar`.
+Teleport coordinates (from leaked client Teleport_Positions — Y ≈ 255-261):
+
+| Place | Vector3 |
+|---|---|
+| Bike Shop | 256, 261, -206 |
+| Burger Place | 113, 260, -212 |
+| Gun Shop | -140, 259, -221 |
+| House block | 124, 261, -393 |
+| Hospital | -133, 261, -555 |
+| Dealer | -222, 255, 388 |
+| Car Dealership | 118, 260, 431 |
+| Gas Station | 125, 258, 137 |
+| Pawn Shop | 1177, 258, -535 |
+| Spin Club | 1253, 260, -418 |
+
+PlayerGui names observed: `JobApplication`, `ProgressBar`, `TopRightHud`
+(stamina bar at `TopRightHud.Holder.StaminaBar`).

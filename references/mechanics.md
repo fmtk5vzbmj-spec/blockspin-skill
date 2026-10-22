@@ -84,3 +84,13 @@ Car theft: hold E on driver door -> click-green minigame x3 -> drive off.
   glows, some crate cars) — they cannot be dropped at all.
 - Alt-account detection exists at least for codes; brand-new accounts may be
   flagged/routed to the New Players shard.
+
+## Scripted transfer (confirmed internals)
+
+- Drop: `Net.send("drop_item", guid, amount)` — the item must be in a
+  carried location ("hand"); safe-stored items can't be dropped anyway.
+- Ground loot: `workspace.DroppedItems.<itemName>` Model with `PickUpZone`.
+- Pickup: `Net.get("pickup_dropped_item", itemModel)` and/or touching the
+  PickUpZone (`firetouchinterest` ~25×).
+- Bank cash: `Net.get("transfer_funds", "hand", "bank", amount)`.
+- See internals.md for the counter protocol and the full event table.
