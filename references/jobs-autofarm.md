@@ -56,6 +56,112 @@ real world instance (e.g. `...Interior.Quick11Beacon`), not a GUI click.
 
 ---
 
+## How an autofarm literally controls the game
+
+Real farms are not "press buttons" — they are a **coroutine state machine**
+built from five primitives:
+
+### 1. The loop skeleton (every farm, same shape)
+
+```lua
+local FarmRoutine = coroutine.create(function()
+    while task.wait(0.2) do            -- tick rate per farm (0.2–1s)
+        if not Toggle("MyFarm") then continue end          -- gate
+        if not (AssertArgument("EventA") and ...) then     -- remote names
+            break                                        -- still exist?
+        end
+        pcall(function()
+            -- one full work cycle; error() anywhere = abort cycle,
+            -- next tick restarts clean
+        end)
+    end
+end)
+```
+
+- `AssertCharacter()` — re-grabs `LocalPlayer.Character` every cycle
+  (death mid-cycle must not nil-crash the loop).
+- `AssertArgument("X")` — checks the game's own argument-check table still
+  has the remote name; if a patch renames it, the farm disables itself
+  instead of firing dead remotes.
+- Everything inside `pcall` + hard timeouts (`os.clock()` deadlines) —
+  5 s to receive a steak, 15 s to find a grill, 10 s for grill
+  assignment. Timeout → `error()` → cycle restarts.
+
+### 2. Movement primitives (how the character "walks")
+
+```lua
+Utils.TP(cframe)              -- instant pivot teleport (short hops,
+                              -- entering buildings)
+Utils.LerpTP(pos, seconds)    -- smooth tween of the character pivot —
+                              -- looks like fast walking, not a blink
+SecureLerpTeleport(origin, target, studsPerSecond, conditional)
+-- THE core mover: interpolates CFrame every Heartbeat at a fixed speed,
+-- follows terrain height (shapecast down each step), optional SpeedRamp
+-- (accelerates 1 s like a real walk then constant), and evaluates
+-- `conditional()` per step — return false mid-path and it aborts
+-- (this is how dynamic ATM rerouting works).
+SecureLerpTeleportWithPathfinding(...)
+-- PathLib.GetPath (PathfindingService) → waypoints → lerp between them,
+-- slowing to ~15 % speed within 30 studs of a >35° turn so it looks human.
+Utils.LockPosition(pos)       -- Heartbeat pin — holds you at a spot
+                              -- (used while stocking at the box pile)
+```
+
+Raycast filters for movement exclude: character, `workspace.Vehicles`,
+`Map.BoundaryWalls`, `Map.Vegetation.Trees`, `Map.Props.PowerLines`,
+`Map.Props.PrestigeMotorsLargeSign`, `Map.RoadNetwork.TrafficLights`,
+and non-`NewProps`/non-`FuseBox` props.
+
+```lua
+Net.send("sprint", true)      -- real sprint remote, toggled during travel
+WaitForPing()                 -- task.wait(max(0.2, ping*2)) after any
+                              -- network-touching action
+```
+
+Stamina guard: `LocalPlayer:GetAttribute("SprintBar")` 0→1. If < 0.01 the
+farm stops moving until ≥ 0.95 (`Storage.MovementSpoof` toggles with it).
+
+### 3. Interaction primitives
+
+```lua
+fireproximityprompt(prompt, holdTime)   -- job boards, boxes, fridge,
+                                        -- ATM prompt, vehicle DrivePrompt
+Net.send("event", ...)                   -- FireServer actions
+Net.get("event", ...)                    -- InvokeServer request/response
+Obj.states.<name>.get()                  -- reactive world state
+SliderMinigame.enabled.hook(fn)          -- fires when a minigame opens
+getconnections(button.MouseButton1Click) -- "click" GUI buttons
+player:GetAttribute("Job"/"SprintBar"/"LastHackedAtmTimestamp")
+```
+
+### 4. Vehicle control
+
+```lua
+local seat = vehicle:FindFirstChildWhichIsA("VehicleSeat", true)
+local prompt = vehicle.Chassis.DrivePromptAttachment.DrivePrompt
+fireproximityprompt(prompt, 0.5)
+-- if not seated in 0.5s: nudge the seat upward (velocity jitter) to grab
+-- network ownership, then re-fire the prompt.
+-- While hacking: Humanoid:ChangeState(Jumping) to un-seat, and
+-- vehicle:PivotTo(charPos + yAxis*12) parks it overhead.
+```
+
+### 5. Recovery pattern
+
+Every cycle is wrapped so any step can `error()`:
+
+- missing object → `error("...")` → cycle restarts (never hard-crashes)
+- `Humanoid.Health == 0` → respawn wait → `apply_for_job` again → resume
+- prompt didn't deliver item in 5 s → restart (server dropped it)
+- grill/ATM state didn't flip in 10 s → `UnequipTools()` + restart
+  (grab desynced)
+
+The farm never trusts a send — it always polls the resulting *state*
+(`mopped`, `user_id_assigned`, `hacker`, `Bobber` child, `amount`)
+before moving to the next step. That is the whole discipline.
+
+---
+
 ## Shelf Stocker — Quick-11 (safest indoor grind)
 
 **World tree (CONFIRMED)**
@@ -140,6 +246,50 @@ reference ~(-225, 257, 488)
    `Net.send("finish_grilling", grillInstance, "Perfect")` — perfect cook
    every cycle; `perfect_cook_time` is server-driven, so this stays exact
    as patches shift.
+
+**Complete cycle — literal pseudocode**
+
+```lua
+-- one cycle = one steak cooked + sold; wrapped in pcall by the loop
+if player:GetAttribute("Job") ~= "steakhouse_cook" then
+    SecureLerpTeleport(char:GetPivot(), CFrame.new(-227,254.7,326), speed)
+    LerpTP(Vector3.new(-233,254.7,334), 3)
+    TP(Vector3.new(-235,256,340))                 -- enter building
+    Net.send("apply_for_job", SteakHouseBeacon)
+    WaitForPing()
+end
+
+if not (held and held:GetAttribute("IsCookable")) then
+    local path = PathLib.GetPath(charPos, Vector3.new(-279,257,334))
+    for _, wp in path:GetWaypoints() do           -- walk the fridge path
+        Net.send("sprint", true)
+        LerpTP(wp.Position + Vector3.yAxis*3,
+               PathLib.GetTravelTime(dist, 60))
+    end
+    Net.send("sprint", false)
+    fireproximityprompt(fridgePrompt)
+    waitUntil(function()                          -- 5s deadline
+        return heldToolIsCookable() or backpackHas("Steak")
+    end, 5)
+end
+
+local grill = repeat getFreeGrill() until grill   -- ≤15s
+walkPathTo(grill.instance.GrillArea:GetPivot())
+Net.send("start_grilling", grill.instance)
+
+local perfect
+waitUntil(function()                              -- ≤10s
+    if grill.states.user_id_assigned.get() == myUserId then
+        perfect = grill.states.perfect_cook_time.get()
+        return perfect and perfect > 0
+    end
+end, 10) or error("grill desync")
+
+task.wait(math.max(perfect - 0.2, 0.1))
+Net.send("finish_grilling", grill.instance, "Perfect")
+WaitForPing()
+-- cycle repeats; pay lands in hand; ATM-deposit when over threshold
+```
 
 **Progression**: skillets shorten cook time; special steaks raise pay
 (buy at the shop / Jack's Hardware as the skill unlocks them).
