@@ -307,10 +307,14 @@ workspace.Map.Tiles.GasStationTile.Quick11.Interior.Quick11Beacon   -- apply
 --   states.perfect_cook_time -> send finish_grilling "Perfect" after
 --   (perfect_cook_time - 0.2)s. Net.get("get_random_free_grill") picks one.
 --   Fridge: ...SteakHouse.Interior.Fridge.Base->Attachment->ProximityPrompt,
---   held steak = Char.held_tool.get() with IsCookable attr.
+--   held steak = Char.held_tool.get() with IsCookable attr (name "Steak").
+--   Job beacon: ...SteakHouse.Interior.SteakHouseBeacon; grill stand
+--   point = grill.GrillArea child; store has .Interior.ATM.
+--   Helper module: Modules.Game.Jobs.JobUtil.
 
 -- Janitor: Modules.Game.Jobs.Janitor.class.objects[] = puddles
 --   .instance + states.mopped + states.mop_length; mop tool = name/tag "Mop".
+--   Burger Place apply spots: (109.1,257.8,-243.6), (110.6,255.2,-309.6).
 
 -- ATM: Modules.ATM.ATM.class.objects[]
 --   .instance + states.disabled + states.hacker (Player|nil)

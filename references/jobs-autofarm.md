@@ -8,8 +8,35 @@ Skill data lives at `DataCore.xp.<skill>` and skill trees at
 `SkillsList.list.<skill>`; check ownership with
 `SkillsList.has_skill(DataCore, "<skill>", "<skillName>")`.
 Current job: `player:GetAttribute("Job")` (`"shelf_stocker"`, `"steakhouse_cook"`,
-`"janitor"` or nil). Skills to level: `janitor`, `cook`, `shelf_stocker`,
-`atm_hacker`, `fishing`, `farmer`, `stamina`.
+`"janitor"` or nil). Confirmed `DataCore.xp` keys: `total_level`, `stamina`,
+`shelf_stocker`, `atm_hacker`, `janitor`, `cook`, `fishing`, `farmer`.
+Extra module: `Modules.Game.Jobs.JobUtil`.
+
+## XP curve — the real formula (CONFIRMED)
+
+Same RuneScape curve the game's `level_to_xp` uses; binary-search it to
+convert `DataCore.xp.<skill>` → level:
+
+```lua
+local function level_to_xp(lvl)
+    local e = 2 ^ (lvl / 7)
+    return math.floor(0.125 * (lvl*lvl - lvl
+        + 600 * ((e - 1.1040895136738123) / 0.10408951367381225)) + 0.5)
+end
+-- xp_to_level: binary search highest L where level_to_xp(L) <= xp (0..100)
+```
+
+| Lvl | XP needed | | Lvl | XP needed | | Lvl | XP needed |
+|---|---|---|---|---|---|---|---|
+| 1 | 0 | | 30 | 13,367 | | 60 | 273,748 |
+| 10 | 1,155 | | 40 | 37,229 | | 70 | 737,635 |
+| 20 | 4,473 | | 45 | 61,517 | | 75 | 1,210,429 |
+| 25 | 7,845 | | 50 | 101,339 | | 80 | 1,986,076 |
+| | | | | | | 99 | 13,034,441 |
+
+Levels are exponential — 70→80 costs more than 1→70 combined. Plan a
+bot's skill targets accordingly (e.g. stop fishing at 75 if offshore
+payoff is reached).
 
 Generic pattern every job object uses:
 
@@ -54,6 +81,10 @@ Job checkpoint: Vector3.new(159, 255, 226)   Box area: ~(149, 255, 209)
    (one Tool can carry a stack — stock count = #Box* attributes).
 5. Per box: `Net.send("player_started_stocking_shelf", shelf)` →
    wait `StockingTime` → `Net.send("player_stocked_shelf", shelf)`.
+6. Pay lands in `hand` — when it crosses a threshold, walk to the
+   **in-store ATM** (`...Interior.ATM`) and
+   `Net.get("transfer_funds", "hand", "bank", amount)` before restocking
+   resumes. Indoor + instant = safest deposit in the game.
 
 **Stocking time (CONFIRMED formula)**
 
@@ -73,28 +104,38 @@ carry. Skills checked via `SkillsList.has_skill(DataCore, "shelf_stocker", name)
 **World tree (CONFIRMED)**
 
 ```
-workspace.Map.Tiles.ShoppingTile.SteakHouse.Interior.Fridge
-  └─ "Base" (BasePart) → Attachment → ProximityPrompt   -- take a steak
+workspace.Map.Tiles.ShoppingTile.SteakHouse.Interior
+  .SteakHouseBeacon            -- job board; Net.send("apply_for_job", it)
+  .Fridge."Base" (BasePart) → Attachment → ProximityPrompt   -- take steak
+  .ATM                         -- in-store ATM for auto-deposit
 Module: Modules.Game.Jobs.SteakhouseCook
   .grill_class.objects[]     -- grills
   .grill_class.get(instance) -- object for a grill instance
   per grill: .states.user_id_assigned.get()  -- 0 = free
              .states.perfect_cook_time.get() -- EXACT seconds for "Perfect"
+  grill instance child: .GrillArea (stand position)
+Entry checkpoints: (-227, 254.7, 326) → (-233, 254.7, 334) → inside
+(-235, 256, 340). Fridge approach goal: (-279, 257, 334).
 Nearby ATM waypoints: (-231.9, 256.6, 331.5), (-222.9, 256.6, 331.5),
 reference ~(-225, 257, 488)
 ```
 
 **Autofarm loop (CONFIRMED)**
 
-1. `Job` must be `"steakhouse_cook"` (apply at the SteakHouse beacon).
-2. If held tool lacks `IsCookable == true` → `fireproximityprompt(FridgePrompt)`
-   → wait ≤5s for a cookable held tool.
+1. `Job` must be `"steakhouse_cook"` — else teleport the checkpoints and
+   `Net.send("apply_for_job", SteakHouseBeacon)`.
+2. If held tool lacks `IsCookable == true` → path to fridge →
+   `fireproximityprompt(FridgePrompt)` → wait ≤5s for a cookable tool
+   (also accepted from `Backpack` — item is literally named `"Steak"`).
 3. Get a free grill: `Net.get("get_random_free_grill")` returns a grill
    instance → `grill_class.get(instance)`; or scan objects for
-   `user_id_assigned.get() == 0` and take the nearest.
-4. `Net.send("start_grilling", grillInstance)`.
-5. Poll until `user_id_assigned.get() == LocalPlayer.UserId`, then read
-   `perfect_cook_time.get()`.
+   `user_id_assigned.get() == 0` and take the nearest. Retry ≤15 s if
+   all grills are busy.
+4. Path to `grill.GrillArea:GetPivot()` →
+   `Net.send("start_grilling", grillInstance)`.
+5. Poll ≤10 s until `user_id_assigned.get() == LocalPlayer.UserId`, then
+   read `perfect_cook_time.get()` (if it never assigns → UnequipTools +
+   restart — the grab desynced).
 6. `task.wait(perfectTime - 0.2)` →
    `Net.send("finish_grilling", grillInstance, "Perfect")` — perfect cook
    every cycle; `perfect_cook_time` is server-driven, so this stays exact
@@ -108,6 +149,7 @@ reference ~(-225, 257, 488)
 ## Janitor — Burger Place
 
 **Module (CONFIRMED)**: `require(Modules.Game.Jobs.Janitor)`
+(+ `Modules.Game.Jobs.JobUtil` for shared job helpers)
 
 ```lua
 Janitor.class.objects[]  -- puddles
@@ -116,12 +158,22 @@ Janitor.class.objects[]  -- puddles
   .states.mop_length.get() -- seconds the mop takes on this puddle
 ```
 
-**Autofarm loop**
+**Job apply spots (CONFIRMED)**: (109.1, 257.8, -243.6) and
+(110.6, 255.2, -309.6) — the Burger Place interior checkpoints.
+
+**Autofarm loop (CONFIRMED)**
 
 1. `Job == "janitor"`; hold a tool whose name contains `"mop"` or has the
-   `Mop` tag (Backpack search same rule).
-2. Nearest puddle where `not mopped.get()` → move within ~6 studs →
+   `Mop` tag — equip from `Backpack` if needed
+   (`hum:EquipTool(bpTool)`).
+2. Nearest puddle where `not mopped.get()` → path to within ~6 studs →
    wait `mop_length.get() + 0.3`.
+3. No puddles left → `task.wait(1)` and rescan (they respawn).
+
+**Movement tuning used by real farms**: WalkSpeed ~25, waypoint spacing
+2, reach distance 4, forward-obstacle raycast 5.5 studs (doors excluded
+— walk through), re-path every ~3.5 s, stuck = no progress 0.2 studs in
+2.5 s.
 
 **Progression**: higher `janitor` level unlocks extra spill spots + faster
 mops (mop upgrades at Jack's Hardware).
