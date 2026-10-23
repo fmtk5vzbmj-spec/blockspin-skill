@@ -92,8 +92,8 @@ end
 | `purchase_consumable` | get | `shopPromptPart, itemName` | shop buys |
 | `redeem_referral_code` | get | `code` | referral codes |
 | `win` | send | `atmInstance` | ATM hack success |
-| `throw_rod` | get | `rod, waterPosition` | fishing |
-| `reel_ended` | get/send | `rod, true` | fishing |
+| `throw_rod` | get | `rod, waterPosition` | fishing cast; creates `rod.Bobber` |
+| `reel_ended` | send | `rod, true` | fishing catch (fire on SliderMinigame open) |
 | `change_accessory` | send | `category, accessoryName, bool` | character creator |
 | `enter_character_creator` | send | `pivot` | creator |
 | `leave_character_creator` | send | — | creator |
@@ -313,9 +313,18 @@ workspace.Map.Tiles.GasStationTile.Quick11.Interior.Quick11Beacon   -- apply
 --   .instance + states.mopped + states.mop_length; mop tool = name/tag "Mop".
 
 -- ATM: Modules.ATM.ATM.class.objects[]
---   .instance + states.disabled + states.hacker (Player|nil).
---   Once hacker==LocalPlayer -> Net.send("win", atmInstance) skips the
---   slider minigame entirely (~2s wait). player attr LastHackedAtmTimestamp.
+--   .instance + states.disabled + states.hacker (Player|nil)
+--   + states.active_hack_tool.
+--   World models: workspace.Map.Props children named "ATM" (attr
+--   disabled, ObjectValue child = hacker); child parts carry
+--   ProximityPrompts. Stand side = Pivot + RightVector*-3.5.
+--   Enclosed check: raycast 20 up/down excl. Map.RoadNetwork.
+--   GUI flow: fireproximityprompt ->
+--   PlayerGui.ATM.ATMHolder.ATMHomePage.Title.ATMHackButton ->
+--   SliderMinigame -> Net.send("minigame_win", atm).
+--   Exploit: Net.send(<runtime Request>, atm, tool) claims it, then
+--   "minigame_win" ~1.5s later skips the slider entirely.
+--   Cooldown: player attr LastHackedAtmTimestamp, keep >=5s between sends.
 
 -- Fishing: Modules.ItemTypes.FishingRod.equipped_rod.get()
 --   rod:GetAttribute("ItemGUID") -> ItemUtils.get_item_info -> .ammo_amount

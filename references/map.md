@@ -28,8 +28,37 @@ Workspace tree: `workspace.Map.Tiles.<TileName>.<Building>.Interior`.
 | Beach | Pawn shop area | Top-left / west edge |
 | Mansions + Mansion Underground | High-tier homes, extra safes | Mansion coast |
 | Offshore deep-sea spot | Level-75 fishing | Off the mansion coast |
-| ATMs | Deposit cash / hack targets | Scattered, incl. Police Station area |
+| ATMs | Deposit cash / hack targets | Scattered (see ATM section) |
 | Dealerships (car icon) | Car crates | Map icons |
+
+## ATMs
+
+All street ATMs are Models named `ATM` under `workspace.Map.Props`
+(`disabled` attribute + an ObjectValue child pointing at the current
+hacker). Interior machines exist too — e.g.
+`workspace.Map.Tiles.GasStationTile.Quick11.Interior.ATM`.
+
+Enumerate them all at runtime:
+
+```lua
+for _, v in workspace.Map.Props:GetChildren() do
+    if v.Name == "ATM" then print(v:GetPivot().Position) end
+end
+```
+
+Confirmed outdoor spots: a pair in the alley behind the SteakHouse /
+dealer block (~ -231, 256, 331 and ~ -222, 256, 331), plus machines near
+the Gas Station, Police Station area and shopping row. Interiors
+(Quick-11, clubs) are enclosed — raycast 20 up/down excluding
+`Map.RoadNetwork` to detect a roof before pathing to one.
+
+## Fishing spots
+
+Water is found by raycast (`Material.Water`), not a fixed list — but
+reliable spots: the dock behind the Car Dealership (118, 260, 431),
+ponds around the residential blocks, the sea edge by the Pawn Shop
+(1177, 258, -535), and the offshore deep-sea area by the Mansions
+(level-75 fish).
 
 Useful confirmed object paths (leaks):
 
