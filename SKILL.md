@@ -118,6 +118,10 @@ actually resolves before dropping anything.
 
 - [references/mechanics.md](references/mechanics.md) — jobs, combat, houses,
   vehicles, ATM hacks, economy, codes, threats during transfers.
+- [references/jobs-autofarm.md](references/jobs-autofarm.md) — literal
+  per-job automation specs: shelf stocker, cook (perfect-cook trick),
+  janitor, ATM hacker tool tiers + win event, fishing 1→80 with bait/rod
+  internals, farmer notes, money-safety patterns, buying/selling map.
 - [references/map.md](references/map.md) — full location list with purposes.
 - [references/items-values.md](references/items-values.md) — weapons, rarities,
   trade values, durability, untradeable items.

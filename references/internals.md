@@ -285,6 +285,60 @@ workspace.DroppedItems / workspace.DroppedItem  -- loot folders; some
 Hack tool item names (inventory): `HackToolBasic`, `HackToolPro`,
 `HackToolUltimate`, `HackToolQuantum` (~$150/$350/$550, prices drift).
 
+## Job/farm modules — CONFIRMED object models
+
+```lua
+-- Every job module exposes reactive state objects:
+Obj.instance                 -- world Model/BasePart
+Obj.states.<name>.get()/.set()
+
+-- Quick-11 shelf stocker:
+workspace.Map.Tiles.GasStationTile.Quick11.Interior.Quick11Beacon   -- apply
+...ShelfStockingJob.Shelves          -- BaseParts named "Shelf"
+...ShelfStockingJob.NormalBox        -- ProximityPrompt -> Box tool
+...DoorSystem.DoorBase               -- CanCollide=false walks through
+...ATM                               -- in-store ATM
+-- Box Tool: attribute names containing "Box" = carried stack count.
+-- JobData.job_info.shelf_stocker.stock_shelf_length = base time; divide by
+-- (1 + sum skill speed_percentage_increase/100) for the real time.
+
+-- Cook: Modules.Game.Jobs.SteakhouseCook.grill_class
+--   .objects[]/.get(instance); states.user_id_assigned (0=free),
+--   states.perfect_cook_time -> send finish_grilling "Perfect" after
+--   (perfect_cook_time - 0.2)s. Net.get("get_random_free_grill") picks one.
+--   Fridge: ...SteakHouse.Interior.Fridge.Base->Attachment->ProximityPrompt,
+--   held steak = Char.held_tool.get() with IsCookable attr.
+
+-- Janitor: Modules.Game.Jobs.Janitor.class.objects[] = puddles
+--   .instance + states.mopped + states.mop_length; mop tool = name/tag "Mop".
+
+-- ATM: Modules.ATM.ATM.class.objects[]
+--   .instance + states.disabled + states.hacker (Player|nil).
+--   Once hacker==LocalPlayer -> Net.send("win", atmInstance) skips the
+--   slider minigame entirely (~2s wait). player attr LastHackedAtmTimestamp.
+
+-- Fishing: Modules.ItemTypes.FishingRod.equipped_rod.get()
+--   rod:GetAttribute("ItemGUID") -> ItemUtils.get_item_info -> .ammo_amount
+--   = bait left. rod.Bobber exists while cast. SliderMinigame.enabled hook
+--   -> Net.send("reel_ended", rod, true) = auto-catch.
+
+-- Skills: SkillsList.list.<skill>, SkillsList.has_skill(DataCore,
+--   "atm_hacker","HackTool_Pro") etc. Tool tiers:
+--   HackTool_Basic/Pro/Ultimate/Quantum.
+-- Shops: workspace.ShopZone_Illegal (basic->ultimate),
+--   ShopZone_IllegalNightclub (Quantum, limited stock —
+--   ReplicatedStorage.ConsumableItemsInfo.<shop>.<product> attr "stock"
+--   JSON {max_purchase,stock_timer}; StockTimes.get_consumed_amount).
+-- "Shiesty" consumable (mask) purchasable the same way.
+
+-- Inventory helpers (public API): Inventory.GetItemsByName, FilterByLocation
+--   (,"hand"/"safe"), GetInventoryStats().hand{max,current},
+--   GetMoney() -> (cash,bank), GetMoneyT().Cash; Char.held_tool.get();
+--   player attr SprintBar (0..1).
+```
+
+Full per-job automation flows: [jobs-autofarm.md](jobs-autofarm.md).
+
 ## Misc client APIs
 
 - `Modules.Core.Char`: `get_hum()`, `current_char.get()`.

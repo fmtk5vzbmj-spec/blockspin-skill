@@ -14,6 +14,8 @@ items between accounts.
 - `references/internals.md` — Net module, anti-cheat, drop/pickup strategies
 - `references/accounts-sessions.md` — .ROBLOSECURITY capture, auth tickets,
   `roblox-player:` launch URL, server picking, multi-instance mutex handling
+- `references/jobs-autofarm.md` — literal automation specs per job/skill:
+  shelf stocker, cook, janitor, ATM hacker, fishing 1→80, farmer, economy map
 
 ## Install
 
