@@ -123,6 +123,8 @@ NOT yet confirmed: the house-safe store event name. Capture it by spying
 ```lua
 workspace.DroppedItems            -- folder of Model children
 -- each Model: name = item name ("Money" for cash)
+--   some models spawn directly under `workspace` (not in the folder)
+--   generic drops may be named literally "Droppeditem"
 --   PickUpZone            -- BasePart, the real pickup trigger (touch)
 --   AmountBillboardGui    -- cash amount label (money drops)
 --   item_type (attribute) -- category key into ReplicatedStorage.Items
@@ -136,6 +138,10 @@ for i = 1, 25 do
     firetouchinterest(item.PickUpZone, hrp, 1)
     firetouchinterest(item.PickUpZone, hrp, 0)            -- touch path
 end
+
+-- Confirmed trick from public auras: enlarging PickUpZone widens pickup
+-- range — Size ~= 17,17,17 picks items from several studs away.
+item.PickUpZone.Size = Vector3.new(17, 17, 17)
 ```
 
 ## Item catalog
@@ -228,7 +234,12 @@ Teleport coordinates (from leaked Teleport_Positions):
   `reload_time`.
 - Healing tools: `HealthRestoreAmount` (also `HealAmount`, `RestoreHealth`).
 - Weapon names observed in scripts: intervention, mossberg, glock, deagle,
-  famas, revolver, vector, spas, p90, usp, m4/ar-class rifles.
+  famas, revolver, vector, spas, p90, usp, m4/ar-class rifles, draco,
+  crossbow, remington, sawnoff, hunting rifle.
+- Reliable gun check: a Tool is a gun iff `ReplicatedStorage.Items.gun`
+  contains a template with the same name — use the catalog, not name
+  heuristics, when distinguishing e.g. "RPG" from other launchers
+  ("Pumpkin Launcher" also matches the word "launcher").
 - Weapon type from name (scripts classify): sniper/scope, shotgun/spas,
   rifle/ak/m4/famas, smg/mp/uzi/vector, pistol/deagle/glock/revolver.
 - Ammo crates at the gun shop take `Pistol`/`Rifle`/`Shotgun` options via
@@ -333,3 +344,5 @@ end))
   opened/closed locally.
 - `createVipServersAllowed: false` — no private servers; lowest-population
   shard is the only privacy.
+- Cookie capture, ticket minting, the full `roblox-player:` URL schema, and
+  window management: see [accounts-sessions.md](accounts-sessions.md).

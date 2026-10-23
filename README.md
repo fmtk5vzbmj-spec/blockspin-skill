@@ -12,6 +12,8 @@ items between accounts.
 - `references/map.md` — full location list + confirmed workspace paths
 - `references/items-values.md` — weapon/vehicle values, durability, untradeables
 - `references/internals.md` — Net module, anti-cheat, drop/pickup strategies
+- `references/accounts-sessions.md` — .ROBLOSECURITY capture, auth tickets,
+  `roblox-player:` launch URL, server picking, multi-instance mutex handling
 
 ## Install
 

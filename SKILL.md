@@ -1,6 +1,6 @@
 ---
 name: blockspin
-description: Complete knowledge base for the Roblox game BlockSpin (PlaceId 104715542330896) - game mechanics, death-drop rules, map, jobs, weapon/item values, the internal networking layer (ReplicatedStorage.Modules.Core.Net), sub-place shards, anti-cheat, manual drop/pickup trading, and account-data inspection. Use when building tools, Lua scripts, or automation for BlockSpin, when transferring items between accounts, or when answering questions about the game.
+description: Complete knowledge base for the Roblox game BlockSpin (PlaceId 104715542330896) - game mechanics, death-drop rules, map, jobs, weapon/item values, the internal networking layer (ReplicatedStorage.Modules.Core.Net), sub-place shards, anti-cheat, manual drop/pickup trading, account-data inspection, and account/session mechanics (.ROBLOSECURITY cookies, auth tickets, multi-instance launching). Use when building tools, Lua scripts, or automation for BlockSpin, when transferring items between accounts, or when answering questions about the game.
 ---
 
 # BlockSpin (Roblox) — Agent Knowledge Base
@@ -79,6 +79,19 @@ actually resolves before dropping anything.
 - The game flags fresh accounts: promo codes return
   "Could not validate your account (Alt Account)" for new alts.
 
+## Accounts, cookies & launching (CONFIRMED)
+
+- Password login via `auth.roblox.com/v2/login` is effectively blocked
+  (FunCaptcha) — authenticate with the `.ROBLOSECURITY` cookie.
+- Capture the cookie via DevTools (F12 → Application → Cookies), an embedded
+  WebView2 pointed at roblox.com/login, or a `user:pass:cookie` paste.
+- Launch a client into an exact server: `POST auth.roblox.com/v1/authentication-ticket`
+  (cookie + CSRF retry) → `roblox-player:1+launchmode:play+gameinfo:<ticket>
+  +placelauncherurl:...&gameInstanceId=<jobId>` → visible Roblox window.
+- Multi-client on one machine: close the `ROBLOX`-named mutant handles inside
+  running `RobloxPlayerBeta` processes before each additional launch.
+- Full details: [references/accounts-sessions.md](references/accounts-sessions.md)
+
 ## What is NOT publicly known (verify in-game before trusting)
 
 - The house-safe store event name/args — spy `Net.get`/`Net.send` while
@@ -110,3 +123,6 @@ actually resolves before dropping anything.
   trade values, durability, untradeable items.
 - [references/internals.md](references/internals.md) — module/event details,
   anti-cheat techniques, drop/pickup/store strategy for scripts.
+- [references/accounts-sessions.md](references/accounts-sessions.md) —
+  .ROBLOSECURITY capture, auth tickets, protocol launch URL, server picking,
+  multi-instance mutex handling, account-safety notes.
