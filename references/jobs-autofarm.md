@@ -291,20 +291,22 @@ Full loop timing: poll once per second — check rod equipped → check bait
 (activate to reload) → if no `Bobber`, raycast + throw. The bite and the
 reel handle themselves through the minigame hook.
 
-**Where to fish**
+**Where to fish — best spot by level**
 
-Water is detected by raycast, not by a fixed spot list — but confirmed
-good spots:
+Water is detected by raycast (`Material.Water`), not a fixed list — but
+ranked by payout/safety:
 
-- **Dock behind the Car Dealership** (118, 260, 431) — classic low-level
-  spot, shallow pond water, usually quiet.
-- **Ponds/lakes** around the residential blocks — any `Material.Water`
-  hit within 60 studs works; the rod casts exactly where the ray lands.
-- **Beach / sea edge by the Pawn Shop** (1177, 258, -535) — fish and sell
-  in one trip.
-- **Offshore near the Mansions** — the level-75 deep-sea area from the
-  Fishing Update; high-tier fish (sailfish/marlin class). Bring storage
-  first; a stolen rod = dead grind.
+1. **Best overall: dock behind the Car Dealership** (118, 260, 431).
+   Shallow pond, off the main road, far from spawn traffic — the standard
+   quiet grind spot for levels 1–45.
+2. **Best for selling: sea edge by the Pawn Shop** (1177, 258, -535).
+   Fish at the beach, walk inside, sell — no cross-map trips. Pawn is the
+   far corner so almost nobody passes through.
+3. **Ponds around the house blocks** — fine mid-level; closer to players,
+   watch for robbers.
+4. **Level 75+: offshore deep-sea by the Mansions** — the Fishing Update
+   zone; highest-tier fish (sailfish/marlin class). Go with a vehicle for
+   the long return and a safe to store rods; dying out there drops your rod.
 
 **Level path**
 
@@ -323,6 +325,21 @@ tools are sold at Jack's Hardware. Spy `Net.*` while farming manually for
 the real event names before automating.
 
 ---
+
+## Getting around — vehicles for farming
+
+- Cars/bikes are items (`DataCore.items.car`/`.bike`); spawn yours by
+  equipping it (`Net.get("toggle_equip_item", guid)`), then enter via
+  `Chassis.DrivePromptAttachment.DrivePrompt`.
+- Speed lives on the model: `Motors:GetAttribute("forwardMaxSpeed")` —
+  pick your fastest owned vehicle by comparing that attribute across
+  `DataCore.items.car` + `.bike` names.
+- ATM rotation trick: park the car ~12 studs overhead
+  (`PivotTo(charPivot + Vector3.yAxis*12)`) so it stays loaded while you
+  hop out to hack; re-seat via the DrivePrompt to move on.
+- No car? Lockpick ($300, illegal dealer) opens parked ones — or buy a
+  Basic car crate ($540) at the dealership; bikes at Urban Cycles
+  (256, 261, -206) are the cheapest wheels.
 
 ## Money safety pattern (all farms)
 
